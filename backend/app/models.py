@@ -545,6 +545,118 @@ class ParseLogEntry:
 
 
 @dataclass
+class ParseReceipt:
+    """解析回执：解析完成后延迟到达的结果回执，进入缺页复采前必须核验来源。
+
+    成功回执与原始失败日志分开保存，失败日志只追加不覆盖，保证复核链可回查。
+    """
+    receipt_id: str
+    job_id: str
+    source_url: str
+    source_node: str
+    result: str
+    arrived_at: str
+    failure_log_id: str = ""
+    verification: str = "待核验"          # 待核验 / 已核实 / 已驳回
+    verification_note: str = ""
+    verified_by: str = ""
+    verified_at: str = ""
+
+    @classmethod
+    def from_seed_row(cls, row: dict[str, Any]) -> ParseReceipt:
+        return cls(
+            receipt_id=str(row.get("receipt_id", "")),
+            job_id=str(row.get("job_id", "")),
+            source_url=str(row.get("source_url", "")),
+            source_node=str(row.get("source_node", "")),
+            result=str(row.get("result", "")),
+            arrived_at=str(row.get("arrived_at", "")),
+            failure_log_id=str(row.get("failure_log_id", "")),
+            verification=str(row.get("verification", "待核验")),
+            verification_note=str(row.get("verification_note", "")),
+            verified_by=str(row.get("verified_by", "")),
+            verified_at=str(row.get("verified_at", "")),
+        )
+
+
+@dataclass
+class MissingPreview:
+    """缺页预览：一次从缺页看板选中的一组地址，确认后统一生成复采资格。"""
+    preview_id: str
+    job_id: str
+    status: str = "待确认"                # 待确认 / 已确认
+    operator: str = ""
+    created_at: str = ""
+    confirmed_at: str = ""
+    urls: list[str] = field(default_factory=list)
+
+
+@dataclass
+class MissingPreviewItem:
+    """缺页预览条目：记录单个地址在本组内的确认状态和原因。"""
+    preview_id: str
+    job_id: str
+    source_url: str
+    failure_reason: str
+    state: str = "等候整组确认"            # 等候整组确认 / 单独退回核验 / 已确认 / 已领走 / 已排除 / 已延期
+    reason: str = ""
+    log_ids: list[str] = field(default_factory=list)
+    recrawl_id: str = ""
+    updated_at: str = ""
+
+
+@dataclass
+class RecrawlEntry:
+    """缺页复采资格：同一作业同一地址只允许一条，状态流转只在本服务内发生。"""
+    recrawl_id: str
+    job_id: str
+    source_url: str
+    status: str = "等候确认"              # 等候确认 / 有资格 / 已领走 / 核验中 / 已排除 / 已延期
+    reason: str = ""
+    failure_reason: str = ""
+    log_ids: list[str] = field(default_factory=list)
+    receipt_id: str = ""
+    preview_id: str = ""
+    claim_count: int = 0
+    claimed_by: str = ""
+    claimed_at: str = ""
+    created_at: str = ""
+    updated_at: str = ""
+
+    def is_claimable(self) -> bool:
+        """只有已经确认有资格、且尚未被领走的地址才允许任务领取。"""
+        return self.status == "有资格" and self.claim_count == 0
+
+
+@dataclass
+class RecrawlEvent:
+    """复采事件：地址延期、排除、领走等决策都追加一条，用于原因回查。"""
+    event_id: str
+    job_id: str
+    source_url: str
+    action: str
+    reason: str = ""
+    detail: str = ""
+    operator: str = ""
+    preview_id: str = ""
+    receipt_id: str = ""
+    task_id: str = ""
+    created_at: str = ""
+
+
+@dataclass
+class RecrawlClaim:
+    """复采认领记录：任务每次真正领走一个地址时追加一条。"""
+    claim_id: str
+    task_id: str
+    job_id: str
+    source_url: str
+    recrawl_id: str
+    reason: str = ""
+    created_at: str = ""
+
+
+@dataclass
 class IncrCursor:
     """增量采集游标：incr_crawl 管理，记录每个站点的增量位置。"""
     cursor_id: str

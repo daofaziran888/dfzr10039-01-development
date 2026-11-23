@@ -53,13 +53,13 @@ npm run dev
 | 采集站点 | `crawl_site` | 目标站点 | 站点编号、站点域名、站点类型 |
 | 代理池 | `proxy_pool` | 代理节点 | 节点编号、代理地址、代理类型 |
 | 反爬对抗 | `anti_block` | 对抗策略 | 策略编号、目标站点、对抗类型 |
-| 采集任务 | `crawl_job` | 采集作业 | 作业编号、目标站点、入口URL |
+| 采集任务 | `crawl_job` | 采集作业 | 作业编号、目标站点、入口URL、复采状态 |
 | URL去重 | `url_dedup` | 去重指纹 | 指纹编号、源URL、指纹算法 |
 | 内容抽取 | `content_extract` | 抽取规则 | 规则编号、目标站点、XPath选择器 |
 | 字段清洗 | `field_clean` | 清洗规则 | 规则编号、目标字段、清洗类型 |
 | 批次存储 | `batch_store` | 采集批次 | 批次编号、来源作业、数据行数 |
 | 增量采集 | `incr_crawl` | 增量标记 | 标记编号、目标站点、增量字段 |
-| 解析日志 | `parse_log` | 解析记录 | 记录编号、来源URL、解析规则 |
+| 解析日志 | `parse_log` | 解析记录 | 记录编号、来源URL、解析规则、所属作业 |
 | 数据投递 | `data_delivery` | 投递任务 | 任务编号、数据来源、目标系统 |
 | 质量抽样 | `quality_sample` | 抽样计划 | 计划编号、目标批次、抽样比例 |
 | 站点监控 | `site_monitor` | 监控指标 | 指标编号、目标站点、监控类型 |
@@ -72,6 +72,21 @@ npm run dev
 | 差异检测 | `diff_check` | 差异记录 | 记录编号、目标站点、检测页面 |
 | 导出任务 | `export_task` | 导出记录 | 记录编号、数据来源、导出格式 |
 | 操作审计 | `audit_log` | 审计记录 | 记录编号、操作模块、操作人 |
+
+## 缺页复采
+
+`parse_log` 只记录来源 URL 和异常类型时，值班缺的是按作业汇总的缺页视图。
+新增 `/missing_recrawl` 页面和 `/api/recrawl/*` 接口补齐这条链路：
+
+- `GET /api/recrawl/missing-board[?job_id=]`：按采集作业汇总缺页地址、失败原因和原始解析日志（只读留存）。
+- `POST /api/recrawl/previews`：勾选一组地址生成缺页预览；有失败记录的地址才允许进入。
+- `POST /api/recrawl/receipts/{id}/verify`：核验迟到成功回执；核实为真后该地址排除复采。
+- `POST /api/recrawl/previews/{id}/confirm`：提交整组选项（纳入 / 延期 / 排除），同一地址只落一份复采资格。
+- `POST /api/recrawl/claims`：采集任务按复采清单领真正有资格的入口，返回实际所领、等候整组确认和单独退回核验的地址。
+- `GET /api/recrawl/board[?job_id=]`：已领走 / 等候整组确认 / 单独退回核验，按原因排列。
+- `GET /api/recrawl/events[?job_id=&source_url=]`：每个地址的纳入、延期、排除、核验、领走原因回查。
+
+约束：复核中的地址不能执行复采，成功回执一经核实必须排除；已领走的资格不会被旧预览改回可领取。
 
 ## 约定
 

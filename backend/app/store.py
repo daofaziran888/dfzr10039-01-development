@@ -10,13 +10,19 @@ from app.seed import SEED_ROWS
 
 
 class Store:
+    # 缺页复采的内部流水表，不作为独立业务模块出现在运营概览里。
+    INTERNAL_TABLES = {
+        "parse_receipt", "missing_preview", "missing_preview_item",
+        "recrawl_entry", "recrawl_event", "recrawl_claim",
+    }
+
     def __init__(self) -> None:
         self._tables: dict[str, list[dict[str, Any]]] = {
             name: [dict(row) for row in rows] for name, rows in SEED_ROWS.items()
         }
 
     def module_names(self) -> list[str]:
-        return sorted(self._tables)
+        return sorted(name for name in self._tables if name not in self.INTERNAL_TABLES)
 
     def rows(self, module: str) -> list[dict[str, Any]]:
         return self._tables.setdefault(module, [])
